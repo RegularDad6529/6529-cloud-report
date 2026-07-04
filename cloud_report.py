@@ -770,26 +770,29 @@ def main():
     print(f'Saved PNG: {out_png}')
 
     # === Export cloud SVG path for HTML (at 1x coordinates) ===
-    import cv2
-    mask_arr = np.array(hard_mask)
-    contours, _ = cv2.findContours(
-        (mask_arr == 0).astype(np.uint8) * 255,
-        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
-    )
     cloud_path_str = ''
-    if contours:
-        largest = max(contours, key=cv2.contourArea)
-        epsilon = 3.0
-        approx = cv2.approxPolyDP(largest, epsilon, True)
-        for i, pt in enumerate(approx):
-            # Scale from 2x mask coords to 1x canvas coords + offset
-            px = int(pt[0][0] / SS + MASK_XO / SS)
-            py = int(pt[0][1] / SS + MASK_YO / SS)
-            if i == 0:
-                cloud_path_str += f'M{px},{py}'
-            else:
-                cloud_path_str += f' L{px},{py}'
-        cloud_path_str += ' Z'
+    try:
+        import cv2
+        mask_arr = np.array(hard_mask)
+        contours, _ = cv2.findContours(
+            (mask_arr == 0).astype(np.uint8) * 255,
+            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
+        )
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            epsilon = 3.0
+            approx = cv2.approxPolyDP(largest, epsilon, True)
+            for i, pt in enumerate(approx):
+                # Scale from 2x mask coords to 1x canvas coords + offset
+                px = int(pt[0][0] / SS + MASK_XO / SS)
+                py = int(pt[0][1] / SS + MASK_YO / SS)
+                if i == 0:
+                    cloud_path_str += f'M{px},{py}'
+                else:
+                    cloud_path_str += f' L{px},{py}'
+            cloud_path_str += ' Z'
+    except ImportError:
+        print('cv2 not available — skipping SVG cloud path export')
 
     # === Export PNG as base64 for HTML embedding ===
     import io as _io
