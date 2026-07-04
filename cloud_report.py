@@ -514,10 +514,10 @@ def main():
 
     # Bottom row — wide flat base, kept away from edges
     for i in range(11):
-        blob(0.08 + i * 0.084, 0.84, 0.14 + 0.02 * math.sin(i * 0.9))
+        blob(0.08 + i * 0.084, 0.80, 0.14 + 0.02 * math.sin(i * 0.9))
     # Extra lower fill row — adds mass to bottom of cloud
     for i in range(9):
-        blob(0.12 + i * 0.095, 0.90, 0.11 + 0.015 * math.sin(i * 1.1))
+        blob(0.12 + i * 0.095, 0.86, 0.10 + 0.015 * math.sin(i * 1.1))
     # Central fill — prevents donut hole
     blob(0.50, 0.52, 0.28)
     blob(0.30, 0.52, 0.20)
