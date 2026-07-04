@@ -1051,5 +1051,13 @@ body {{
     print(f'\nWeather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}')
     print(f'Cloud path: {len(cloud_path_str)} chars')
 
+    # Write caption file for wave posting
+    caption_path = os.environ.get('CAPTION_PATH', '/tmp/cloud_caption.txt')
+    with open(caption_path, 'w') as f:
+        f.write(f"6529 Cloud Report — {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}\n\n")
+        f.write(f"Weather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}\n")
+        f.write(f"Source: {drop_count} text samples from {len(wave_names)} waves\n\n")
+        f.write(f"Live at regulardad6529.github.io/6529-cloud-report")
+
 if __name__ == '__main__':
     main()
