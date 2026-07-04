@@ -797,19 +797,20 @@ def main():
     final_small.save(png_buf, format='PNG')
     png_b64 = base64.b64encode(png_buf.getvalue()).decode()
 
-    # Font as base64
-    with open(FONT_PATH, 'rb') as f:
-        font_b64 = base64.b64encode(f.read()).decode()
+    # Save HTML (optional — skip if font file not available or HTML fails)
+    try:
+        with open(FONT_PATH, 'rb') as f:
+            font_b64 = base64.b64encode(f.read()).decode()
 
-    # === Build HTML — static PNG + weather-only animations ===
-    weather_lower = weather.lower().replace(' ', '_')
-    is_positive = avg_sentiment > 0.2
-    is_negative = avg_sentiment < -0.2
-    is_rainy = 'rainy' in weather_lower or 'stormy' in weather_lower
-    is_stormy = 'stormy' in weather_lower
-    is_sunny = 'sunny' in weather_lower
+        # === Build HTML — static PNG + weather-only animations ===
+        weather_lower = weather.lower().replace(' ', '_')
+        is_positive = avg_sentiment > 0.2
+        is_negative = avg_sentiment < -0.2
+        is_rainy = 'rainy' in weather_lower or 'stormy' in weather_lower
+        is_stormy = 'stormy' in weather_lower
+        is_sunny = 'sunny' in weather_lower
 
-    html = f'''<!DOCTYPE html>
+        html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -881,9 +882,9 @@ body {{
 }}
 '''
 
-    # Weather-specific CSS animations
-    if is_sunny:
-        html += '''
+        # Weather-specific CSS animations
+        if is_sunny:
+            html += '''
 /* Sun rays */
 @keyframes sunRotate {
   from { transform: rotate(0deg); }
@@ -905,23 +906,23 @@ body {{
   width: 600px; height: 600px;
   transform: translate(-50%, -50%);
   background: conic-gradient(
-    from 0deg,
-    rgba(255,200,100,0) 0deg,
-    rgba(255,200,100,0.3) 10deg,
-    rgba(255,200,100,0) 20deg,
-    rgba(255,200,100,0) 40deg,
-    rgba(255,200,100,0.3) 50deg,
-    rgba(255,200,100,0) 60deg,
-    rgba(255,200,100,0) 80deg,
-    rgba(255,200,100,0.3) 90deg,
-    rgba(255,200,100,0) 100deg,
-    rgba(255,200,100,0) 360deg
+        from 0deg,
+        rgba(255,200,100,0) 0deg,
+        rgba(255,200,100,0.3) 10deg,
+        rgba(255,200,100,0) 20deg,
+        rgba(255,200,100,0) 40deg,
+        rgba(255,200,100,0.3) 50deg,
+        rgba(255,200,100,0) 60deg,
+        rgba(255,200,100,0) 80deg,
+        rgba(255,200,100,0.3) 90deg,
+        rgba(255,200,100,0) 100deg,
+        rgba(255,200,100,0) 360deg
   );
 }
 '''
 
-    if is_rainy or is_stormy:
-        html += f'''
+        if is_rainy or is_stormy:
+            html += f'''
 /* Rain drops */
 @keyframes rainFall {{
   0% {{ transform: translateY(-20px); opacity: 0; }}
@@ -939,8 +940,8 @@ body {{
 }}
 '''
 
-    if is_stormy:
-        html += '''
+        if is_stormy:
+            html += '''
 /* Lightning flash */
 @keyframes lightningFlash {
   0%, 95%, 100% { opacity: 0; }
@@ -955,14 +956,14 @@ body {{
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(ellipse at 50% 20%,
-    rgba(255,240,200,0.8) 0%,
-    rgba(255,240,200,0) 60%);
+        rgba(255,240,200,0.8) 0%,
+        rgba(255,240,200,0) 60%);
   animation: lightningFlash 12s ease-in-out infinite;
 }
 '''
 
-    # Floating particles (all weather)
-    html += '''
+        # Floating particles (all weather)
+        html += '''
 /* Floating ambient particles */
 @keyframes particleFloat {
   0%, 100% { transform: translate(0, 0); opacity: 0.3; }
@@ -980,7 +981,7 @@ body {{
 }
 '''
 
-    html += f'''
+        html += f'''
 </style>
 </head>
 <body>
@@ -990,57 +991,60 @@ body {{
   <div class="vignette"></div>
 '''
 
-    if is_sunny:
-        html += '  <div class="sun-rays"></div>\n'
+        if is_sunny:
+            html += '  <div class="sun-rays"></div>\n'
 
-    if is_stormy:
-        html += '  <div class="lightning"></div>\n'
+        if is_stormy:
+            html += '  <div class="lightning"></div>\n'
 
-    # Generate rain drops via JS
-    if is_rainy or is_stormy:
-        num_rain = 60 if is_stormy else 30
-        html += f'''  <script>
+        # Generate rain drops via JS
+        if is_rainy or is_stormy:
+            num_rain = 60 if is_stormy else 30
+            html += f'''  <script>
   (function() {{
-    var effects = document.getElementById('effects');
-    // Rain drops
-    for (var i = 0; i < {num_rain}; i++) {{
-      var drop = document.createElement('div');
-      drop.className = 'rain';
-      drop.style.left = (Math.random() * 100) + '%';
-      drop.style.height = (12 + Math.random() * 28) + 'px';
-      drop.style.top = '-30px';
-      var dur = 0.8 + Math.random() * 1.2;
-      drop.style.animation = 'rainFall ' + dur + 's linear infinite';
-      drop.style.animationDelay = (Math.random() * 2) + 's';
-      effects.appendChild(drop);
-    }}
+        var effects = document.getElementById('effects');
+        // Rain drops
+        for (var i = 0; i < {num_rain}; i++) {{
+          var drop = document.createElement('div');
+          drop.className = 'rain';
+          drop.style.left = (Math.random() * 100) + '%';
+          drop.style.height = (12 + Math.random() * 28) + 'px';
+          drop.style.top = '-30px';
+          var dur = 0.8 + Math.random() * 1.2;
+          drop.style.animation = 'rainFall ' + dur + 's linear infinite';
+          drop.style.animationDelay = (Math.random() * 2) + 's';
+          effects.appendChild(drop);
+        }}
 '''
 
-    # Particles (all weather)
-    accent_rgb = f'rgba({accent[0]},{accent[1]},{accent[2]},0.4)'
-    is_rainy_js = 'true' if (is_rainy or is_stormy) else 'false'
-    html += f'''    // Floating particles
-    for (var i = 0; i < 20; i++) {{
-      var p = document.createElement('div');
-      p.className = 'particle';
-      p.style.left = (Math.random() * 100) + '%';
-      p.style.top = (20 + Math.random() * 60) + '%';
-      p.style.background = '{accent_rgb}';
-      p.style.animationDuration = (6 + Math.random() * 8) + 's';
-      p.style.animationDelay = (Math.random() * 4) + 's';
-      effects.appendChild(p);
-    }}
+        # Particles (all weather)
+        accent_rgb = f'rgba({accent[0]},{accent[1]},{accent[2]},0.4)'
+        is_rainy_js = 'true' if (is_rainy or is_stormy) else 'false'
+        html += f'''    // Floating particles
+        for (var i = 0; i < 20; i++) {{
+          var p = document.createElement('div');
+          p.className = 'particle';
+          p.style.left = (Math.random() * 100) + '%';
+          p.style.top = (20 + Math.random() * 60) + '%';
+          p.style.background = '{accent_rgb}';
+          p.style.animationDuration = (6 + Math.random() * 8) + 's';
+          p.style.animationDelay = (Math.random() * 4) + 's';
+          effects.appendChild(p);
+        }}
   }})();
   </script>
 '''
 
-    html += '''</div>
+        html += '''</div>
 </body>
 </html>'''
 
-    with open(OUTPUT_HTML, 'w') as f:
-        f.write(html)
-    print(f'Saved HTML: {OUTPUT_HTML}')
+        with open(OUTPUT_HTML, 'w') as f:
+            f.write(html)
+        print(f'Saved HTML: {OUTPUT_HTML}')
+    except Exception as e:
+        print(f'HTML generation skipped: {e}')
+
     print(f'\nWeather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}')
     print(f'Cloud path: {len(cloud_path_str)} chars')
 
