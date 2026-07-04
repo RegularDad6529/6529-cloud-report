@@ -12,16 +12,7 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 
 # === Config ===
-import os, json
-
-# Load 6529 API token — supports local file and CI env var
-_TOKEN_FILE = '/home/prenode/.hermes/profiles/themanager/6529_tokens.json'
-if os.path.exists(_TOKEN_FILE):
-    TOKEN = json.load(open(_TOKEN_FILE))['token']
-elif os.environ.get('TOKEN_6529'):
-    TOKEN = os.environ['TOKEN_6529']
-else:
-    raise RuntimeError("No 6529 token found. Set TOKEN_6529 env var or mount token file.")
+TOKEN = json.load(open('/home/prenode/.hermes/profiles/themanager/6529_tokens.json'))['token']
 API_BASE = 'https://api.6529.io/api'
 OUTPUT_PNG = '/tmp/6529_weather.png'  # may be overridden by --output flag below
 OUTPUT_HTML = '/tmp/6529_cloud_report_v10.html'
@@ -508,10 +499,10 @@ def main():
     mask = Image.new('L', (MASK_W, MASK_H), 255)  # 255 = blocked
     mask_draw = ImageDraw.Draw(mask)
 
-    cloud_left = 200     # leave blue sky on left
-    cloud_top = 120       # leave blue sky on top
-    cloud_right = MASK_W - 200   # leave blue sky on right
-    cloud_bottom = MASK_H - 300  # leave more blue at bottom for footer
+    cloud_left = 100     # minimal blue sky on left
+    cloud_top = 340       # expanded cloud, lowered for centering
+    cloud_right = MASK_W - 100   # minimal blue sky on right
+    cloud_bottom = MASK_H - 200  # extend bottom even further
     cloud_w = cloud_right - cloud_left
     cloud_h = cloud_bottom - cloud_top
 
@@ -523,7 +514,10 @@ def main():
 
     # Bottom row — wide flat base, kept away from edges
     for i in range(11):
-        blob(0.08 + i * 0.084, 0.78, 0.12 + 0.02 * math.sin(i * 0.9))
+        blob(0.08 + i * 0.084, 0.84, 0.14 + 0.02 * math.sin(i * 0.9))
+    # Extra lower fill row — adds mass to bottom of cloud
+    for i in range(9):
+        blob(0.12 + i * 0.095, 0.90, 0.11 + 0.015 * math.sin(i * 1.1))
     # Central fill — prevents donut hole
     blob(0.50, 0.52, 0.28)
     blob(0.30, 0.52, 0.20)
@@ -657,12 +651,12 @@ def main():
         mode='RGBA',
         mask=np.array(hard_mask),
         color_func=color_func,
-        max_words=120,
-        min_font_size=20,
-        max_font_size=130,
+        max_words=140,
+        min_font_size=22,
+        max_font_size=160,
         relative_scaling=0.6,
         prefer_horizontal=0.95,
-        margin=12,
+        margin=10,
         collocations=False,
         random_state=42,
         font_path=FONT_PATH,
@@ -727,10 +721,10 @@ def main():
     small_font = ImageFont.truetype(FONT_REGULAR, 32)  # 2x of 16
     tiny_font = ImageFont.truetype(FONT_REGULAR, 28)  # 2x of 14
 
-    # Footer backing
+    # Footer backing — compact
     footer_overlay = Image.new('RGBA', (RW, RH), (0, 0, 0, 0))
     footer_draw = ImageDraw.Draw(footer_overlay)
-    footer_h = 220  # 2x of 110
+    footer_h = 160  # 2x of 80 — more compact
     for y in range(footer_h):
         alpha = int(90 * (y / footer_h))
         footer_draw.line([(0, RH - footer_h + y), (RW, RH - footer_h + y)],
@@ -739,27 +733,15 @@ def main():
     draw = ImageDraw.Draw(final)
 
     ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
-    footer_text = f'{weather}  ·  Sentiment {avg_sentiment:+.2f}  ·  {drop_count} drops  ·  {len(word_freq)} words'
-    draw.text((50, RH - 180), footer_text, fill=accent, font=sub_font)
+    footer_text = f'{weather}  ·  Sentiment {avg_sentiment:+.2f}  ·  {drop_count} drops  ·  {len(word_freq)} words  ·  {ts}'
+    draw.text((50, RH - 140), footer_text, fill=accent, font=sub_font)
 
-    # Wave list
-    max_chars_per_line = 120
-    lines = []
-    current = ''
-    for name in wave_names:
-        test = current + ('  ·  ' if current else '') + name
-        if len(test) > max_chars_per_line and current:
-            lines.append(current)
-            current = name
-        else:
-            current = test
-    if current:
-        lines.append(current)
-    y_start = RH - 120
-    for i, line in enumerate(lines[:2]):
-        draw.text((50, y_start + i * 36), line, fill=text_color, font=small_font)
-
-    draw.text((50, RH - 36), ts, fill=text_color, font=small_font)
+    # Wave list — 1 line only, truncated
+    max_chars = 130
+    wave_line = '  ·  '.join(wave_names)
+    if len(wave_line) > max_chars:
+        wave_line = wave_line[:max_chars-3] + '...'
+    draw.text((50, RH - 80), wave_line, fill=text_color, font=small_font)
 
     # === Downscale 2x → 1x for crisp text ===
     print('Downscaling 2x → 1x...')
@@ -770,29 +752,26 @@ def main():
     print(f'Saved PNG: {out_png}')
 
     # === Export cloud SVG path for HTML (at 1x coordinates) ===
+    import cv2
+    mask_arr = np.array(hard_mask)
+    contours, _ = cv2.findContours(
+        (mask_arr == 0).astype(np.uint8) * 255,
+        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
+    )
     cloud_path_str = ''
-    try:
-        import cv2
-        mask_arr = np.array(hard_mask)
-        contours, _ = cv2.findContours(
-            (mask_arr == 0).astype(np.uint8) * 255,
-            cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS
-        )
-        if contours:
-            largest = max(contours, key=cv2.contourArea)
-            epsilon = 3.0
-            approx = cv2.approxPolyDP(largest, epsilon, True)
-            for i, pt in enumerate(approx):
-                # Scale from 2x mask coords to 1x canvas coords + offset
-                px = int(pt[0][0] / SS + MASK_XO / SS)
-                py = int(pt[0][1] / SS + MASK_YO / SS)
-                if i == 0:
-                    cloud_path_str += f'M{px},{py}'
-                else:
-                    cloud_path_str += f' L{px},{py}'
-            cloud_path_str += ' Z'
-    except ImportError:
-        print('cv2 not available — skipping SVG cloud path export')
+    if contours:
+        largest = max(contours, key=cv2.contourArea)
+        epsilon = 3.0
+        approx = cv2.approxPolyDP(largest, epsilon, True)
+        for i, pt in enumerate(approx):
+            # Scale from 2x mask coords to 1x canvas coords + offset
+            px = int(pt[0][0] / SS + MASK_XO / SS)
+            py = int(pt[0][1] / SS + MASK_YO / SS)
+            if i == 0:
+                cloud_path_str += f'M{px},{py}'
+            else:
+                cloud_path_str += f' L{px},{py}'
+        cloud_path_str += ' Z'
 
     # === Export PNG as base64 for HTML embedding ===
     import io as _io
@@ -800,20 +779,19 @@ def main():
     final_small.save(png_buf, format='PNG')
     png_b64 = base64.b64encode(png_buf.getvalue()).decode()
 
-    # Save HTML (optional — skip if font file not available or HTML fails)
-    try:
-        with open(FONT_PATH, 'rb') as f:
-            font_b64 = base64.b64encode(f.read()).decode()
+    # Font as base64
+    with open(FONT_PATH, 'rb') as f:
+        font_b64 = base64.b64encode(f.read()).decode()
 
-        # === Build HTML — static PNG + weather-only animations ===
-        weather_lower = weather.lower().replace(' ', '_')
-        is_positive = avg_sentiment > 0.2
-        is_negative = avg_sentiment < -0.2
-        is_rainy = 'rainy' in weather_lower or 'stormy' in weather_lower
-        is_stormy = 'stormy' in weather_lower
-        is_sunny = 'sunny' in weather_lower
+    # === Build HTML — static PNG + weather-only animations ===
+    weather_lower = weather.lower().replace(' ', '_')
+    is_positive = avg_sentiment > 0.2
+    is_negative = avg_sentiment < -0.2
+    is_rainy = 'rainy' in weather_lower or 'stormy' in weather_lower
+    is_stormy = 'stormy' in weather_lower
+    is_sunny = 'sunny' in weather_lower
 
-        html = f'''<!DOCTYPE html>
+    html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -885,9 +863,9 @@ body {{
 }}
 '''
 
-        # Weather-specific CSS animations
-        if is_sunny:
-            html += '''
+    # Weather-specific CSS animations
+    if is_sunny:
+        html += '''
 /* Sun rays */
 @keyframes sunRotate {
   from { transform: rotate(0deg); }
@@ -909,23 +887,23 @@ body {{
   width: 600px; height: 600px;
   transform: translate(-50%, -50%);
   background: conic-gradient(
-        from 0deg,
-        rgba(255,200,100,0) 0deg,
-        rgba(255,200,100,0.3) 10deg,
-        rgba(255,200,100,0) 20deg,
-        rgba(255,200,100,0) 40deg,
-        rgba(255,200,100,0.3) 50deg,
-        rgba(255,200,100,0) 60deg,
-        rgba(255,200,100,0) 80deg,
-        rgba(255,200,100,0.3) 90deg,
-        rgba(255,200,100,0) 100deg,
-        rgba(255,200,100,0) 360deg
+    from 0deg,
+    rgba(255,200,100,0) 0deg,
+    rgba(255,200,100,0.3) 10deg,
+    rgba(255,200,100,0) 20deg,
+    rgba(255,200,100,0) 40deg,
+    rgba(255,200,100,0.3) 50deg,
+    rgba(255,200,100,0) 60deg,
+    rgba(255,200,100,0) 80deg,
+    rgba(255,200,100,0.3) 90deg,
+    rgba(255,200,100,0) 100deg,
+    rgba(255,200,100,0) 360deg
   );
 }
 '''
 
-        if is_rainy or is_stormy:
-            html += f'''
+    if is_rainy or is_stormy:
+        html += f'''
 /* Rain drops */
 @keyframes rainFall {{
   0% {{ transform: translateY(-20px); opacity: 0; }}
@@ -943,8 +921,8 @@ body {{
 }}
 '''
 
-        if is_stormy:
-            html += '''
+    if is_stormy:
+        html += '''
 /* Lightning flash */
 @keyframes lightningFlash {
   0%, 95%, 100% { opacity: 0; }
@@ -959,14 +937,14 @@ body {{
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(ellipse at 50% 20%,
-        rgba(255,240,200,0.8) 0%,
-        rgba(255,240,200,0) 60%);
+    rgba(255,240,200,0.8) 0%,
+    rgba(255,240,200,0) 60%);
   animation: lightningFlash 12s ease-in-out infinite;
 }
 '''
 
-        # Floating particles (all weather)
-        html += '''
+    # Floating particles (all weather)
+    html += '''
 /* Floating ambient particles */
 @keyframes particleFloat {
   0%, 100% { transform: translate(0, 0); opacity: 0.3; }
@@ -984,7 +962,7 @@ body {{
 }
 '''
 
-        html += f'''
+    html += f'''
 </style>
 </head>
 <body>
@@ -994,70 +972,59 @@ body {{
   <div class="vignette"></div>
 '''
 
-        if is_sunny:
-            html += '  <div class="sun-rays"></div>\n'
+    if is_sunny:
+        html += '  <div class="sun-rays"></div>\n'
 
-        if is_stormy:
-            html += '  <div class="lightning"></div>\n'
+    if is_stormy:
+        html += '  <div class="lightning"></div>\n'
 
-        # Generate rain drops via JS
-        if is_rainy or is_stormy:
-            num_rain = 60 if is_stormy else 30
-            html += f'''  <script>
+    # Generate rain drops via JS
+    if is_rainy or is_stormy:
+        num_rain = 60 if is_stormy else 30
+        html += f'''  <script>
   (function() {{
-        var effects = document.getElementById('effects');
-        // Rain drops
-        for (var i = 0; i < {num_rain}; i++) {{
-          var drop = document.createElement('div');
-          drop.className = 'rain';
-          drop.style.left = (Math.random() * 100) + '%';
-          drop.style.height = (12 + Math.random() * 28) + 'px';
-          drop.style.top = '-30px';
-          var dur = 0.8 + Math.random() * 1.2;
-          drop.style.animation = 'rainFall ' + dur + 's linear infinite';
-          drop.style.animationDelay = (Math.random() * 2) + 's';
-          effects.appendChild(drop);
-        }}
+    var effects = document.getElementById('effects');
+    // Rain drops
+    for (var i = 0; i < {num_rain}; i++) {{
+      var drop = document.createElement('div');
+      drop.className = 'rain';
+      drop.style.left = (Math.random() * 100) + '%';
+      drop.style.height = (12 + Math.random() * 28) + 'px';
+      drop.style.top = '-30px';
+      var dur = 0.8 + Math.random() * 1.2;
+      drop.style.animation = 'rainFall ' + dur + 's linear infinite';
+      drop.style.animationDelay = (Math.random() * 2) + 's';
+      effects.appendChild(drop);
+    }}
 '''
 
-        # Particles (all weather)
-        accent_rgb = f'rgba({accent[0]},{accent[1]},{accent[2]},0.4)'
-        is_rainy_js = 'true' if (is_rainy or is_stormy) else 'false'
-        html += f'''    // Floating particles
-        for (var i = 0; i < 20; i++) {{
-          var p = document.createElement('div');
-          p.className = 'particle';
-          p.style.left = (Math.random() * 100) + '%';
-          p.style.top = (20 + Math.random() * 60) + '%';
-          p.style.background = '{accent_rgb}';
-          p.style.animationDuration = (6 + Math.random() * 8) + 's';
-          p.style.animationDelay = (Math.random() * 4) + 's';
-          effects.appendChild(p);
-        }}
+    # Particles (all weather)
+    accent_rgb = f'rgba({accent[0]},{accent[1]},{accent[2]},0.4)'
+    is_rainy_js = 'true' if (is_rainy or is_stormy) else 'false'
+    html += f'''    // Floating particles
+    for (var i = 0; i < 20; i++) {{
+      var p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.top = (20 + Math.random() * 60) + '%';
+      p.style.background = '{accent_rgb}';
+      p.style.animationDuration = (6 + Math.random() * 8) + 's';
+      p.style.animationDelay = (Math.random() * 4) + 's';
+      effects.appendChild(p);
+    }}
   }})();
   </script>
 '''
 
-        html += '''</div>
+    html += '''</div>
 </body>
 </html>'''
 
-        with open(OUTPUT_HTML, 'w') as f:
-            f.write(html)
-        print(f'Saved HTML: {OUTPUT_HTML}')
-    except Exception as e:
-        print(f'HTML generation skipped: {e}')
-
+    with open(OUTPUT_HTML, 'w') as f:
+        f.write(html)
+    print(f'Saved HTML: {OUTPUT_HTML}')
     print(f'\nWeather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}')
     print(f'Cloud path: {len(cloud_path_str)} chars')
-
-    # Write caption file for wave posting
-    caption_path = os.environ.get('CAPTION_PATH', '/tmp/cloud_caption.txt')
-    with open(caption_path, 'w') as f:
-        f.write(f"6529 Cloud Report — {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}\n\n")
-        f.write(f"Weather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}\n")
-        f.write(f"Source: {drop_count} text samples from {len(wave_names)} waves\n\n")
-        f.write(f"Live at regulardad6529.github.io/6529-cloud-report")
 
 if __name__ == '__main__':
     main()
