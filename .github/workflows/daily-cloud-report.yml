@@ -1,0 +1,44 @@
+name: Daily Cloud Report
+
+on:
+  schedule:
+    # Run at 06:00 and 18:00 UTC every day
+    - cron: '0 6,18 * * *'
+  workflow_dispatch: # Allow manual runs
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install wordcloud vaderSentiment pillow numpy
+
+      - name: Generate Cloud Report
+        env:
+          TOKEN_6529: ${{ secrets.TOKEN_6529 }}
+        run: |
+          python cloud_report.py --daily --output cloud_report.png
+
+      - name: Commit and push
+        run: |
+          git config user.name "TheManager"
+          git config user.email "noreply@6529.io"
+          git add cloud_report.png
+          git commit -m "Cloud Report update $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
+          git push
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-report
+          path: cloud_report.png
+          retention-days: 30
