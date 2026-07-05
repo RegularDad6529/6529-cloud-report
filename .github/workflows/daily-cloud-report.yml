@@ -28,8 +28,10 @@ jobs:
         env:
           TOKEN_6529: ${{ secrets.TOKEN_6529 }}
           CAPTION_PATH: cloud_caption.txt
+          PYTHONUNBUFFERED: '1'
+        timeout-minutes: 10
         run: |
-          python cloud_report.py --daily --output cloud_report.png
+          python cloud_report.py --daily --output cloud_report.png 2>&1
 
       - name: Commit and push
         run: |
