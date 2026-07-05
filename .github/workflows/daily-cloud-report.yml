@@ -24,6 +24,24 @@ jobs:
         run: |
           pip install wordcloud vaderSentiment pillow numpy
 
+      - name: Test API connectivity
+        env:
+          TOKEN_6529: ${{ secrets.TOKEN_6529 }}
+        run: |
+          python3 -c "
+          import urllib.request, json
+          token = '$TOKEN_6529'
+          req = urllib.request.Request('https://api.6529.io/api/waves?limit=1',
+              headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'})
+          try:
+              resp = urllib.request.urlopen(req, timeout=15)
+              data = json.loads(resp.read())
+              print(f'API OK: {len(data) if isinstance(data, list) else len(data.get(\"waves\", data.get(\"data\", [])))} waves')
+          except Exception as e:
+              print(f'API ERROR: {e}')
+              raise
+          "
+
       - name: Generate Cloud Report
         env:
           TOKEN_6529: ${{ secrets.TOKEN_6529 }}
