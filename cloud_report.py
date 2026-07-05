@@ -12,7 +12,8 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 
 # === Config ===
-TOKEN = json.load(open('/home/prenode/.hermes/profiles/themanager/6529_tokens.json'))['token']
+import os
+TOKEN = os.environ.get('TOKEN_6529') or json.load(open('/home/prenode/.hermes/profiles/themanager/6529_tokens.json'))['token']
 API_BASE = 'https://api.6529.io/api'
 OUTPUT_PNG = '/tmp/6529_weather.png'  # may be overridden by --output flag below
 OUTPUT_HTML = '/tmp/6529_cloud_report_v10.html'
