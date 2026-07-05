@@ -31,7 +31,13 @@ jobs:
           PYTHONUNBUFFERED: '1'
         timeout-minutes: 10
         run: |
-          python cloud_report.py --daily --output cloud_report.png 2>&1
+          set -x
+          python cloud_report.py --daily --output cloud_report.png
+          echo "EXIT_CODE=$?"
+          ls -la cloud_report.png
+          # Write caption
+          echo "Daily Cloud Report — $(date -u '+%Y-%m-%d %H:%M UTC')" > cloud_caption.txt
+          cat cloud_caption.txt
 
       - name: Commit and push
         run: |

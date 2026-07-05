@@ -348,7 +348,15 @@ def fetch_and_process_daily():
             'date': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
         }, f)
     print(f'Cached to {CACHE_FILE}')
-
+    
+    # Write caption file for wave posting
+    caption_path = os.environ.get('CAPTION_PATH', '/tmp/cloud_caption.txt')
+    weather = 'sunny' if avg_sentiment > 0.5 else 'partly cloudy' if avg_sentiment > 0.2 else 'overcast' if avg_sentiment > -0.2 else 'rainy' if avg_sentiment > -0.5 else 'stormy'
+    caption = f'6529 Cloud Report | {weather} | Sentiment {avg_sentiment:+.3f} | {len(all_text)} drops from {len(wave_names)} waves | {len(word_freq)} words | {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}'
+    with open(caption_path, 'w') as f:
+        f.write(caption)
+    print(f'Caption: {caption}')
+    
     return word_freq, avg_sentiment, wave_names, len(all_text)
 
 def fetch_and_process():
