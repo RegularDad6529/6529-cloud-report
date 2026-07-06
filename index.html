@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>6529 Cloud Report</title>
 <style>
+/* Font: DejaVu Sans Bold (not embedded for Pages — words are in the PNG) */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #0a0a0a;
+  background: #1a1a1a;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: vh;
+  min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .scene {
@@ -21,7 +22,6 @@ body {
   overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  max-width: 100%;
 }
 .cloud-img {
   position: absolute;
@@ -30,6 +30,7 @@ body {
   height: 100%;
   z-index: 1;
 }
+/* Weather effect layers (above image, below nothing — purely decorative) */
 .effects {
   position: absolute;
   top: 0; left: 0;
@@ -40,6 +41,7 @@ body {
   overflow: hidden;
   border-radius: 12px;
 }
+/* Cloud breathing — subtle scale pulse on the entire image */
 @keyframes cloudBreathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.015); }
@@ -48,6 +50,7 @@ body {
   animation: cloudBreathe 8s ease-in-out infinite;
   transform-origin: center 40%;
 }
+/* Vignette pulse */
 @keyframes vignettePulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.5; }
@@ -62,6 +65,8 @@ body {
   box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
   animation: vignettePulse 6s ease-in-out infinite;
 }
+
+/* Floating ambient particles */
 @keyframes particleFloat {
   0%, 100% { transform: translate(0, 0); opacity: 0.3; }
   25% { transform: translate(10px, -15px); opacity: 0.5; }
@@ -76,27 +81,7 @@ body {
   pointer-events: none;
   animation: particleFloat ease-in-out infinite;
 }
-.info {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 4;
-  color: rgba(255,255,255,0.5);
-  font-size: 14px;
-  letter-spacing: 1px;
-  white-space: nowrap;
-}
-.info a {
-  color: rgba(255,255,255,0.4);
-  text-decoration: none;
-}
-.info a:hover {
-  color: rgba(255,255,255,0.7);
-}
-@media (max-width: 1400px) {
-  .scene { width: 100vw; height: 80vw; max-height: 80vh; }
-}
+
 </style>
 </head>
 <body>
@@ -104,22 +89,19 @@ body {
   <img class="cloud-img" src="cloud_report.png" alt="6529 Cloud Report">
   <div class="effects" id="effects"></div>
   <div class="vignette"></div>
+    // Floating particles
+    for (var i = 0; i < 20; i++) {
+      var p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.top = (20 + Math.random() * 60) + '%';
+      p.style.background = 'rgba(157,157,157,0.4)';
+      p.style.animationDuration = (6 + Math.random() * 8) + 's';
+      p.style.animationDelay = (Math.random() * 4) + 's';
+      effects.appendChild(p);
+    }
+  })();
+  </script>
 </div>
-<script>
-(function() {
-  var effects = document.getElementById('effects');
-  // Floating particles
-  for (var i = 0; i < 20; i++) {
-    var p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = (Math.random() * 100) + '%';
-    p.style.top = (20 + Math.random() * 60) + '%';
-    p.style.background = 'rgba(180,200,230,0.4)';
-    p.style.animationDuration = (6 + Math.random() * 8) + 's';
-    p.style.animationDelay = (Math.random() * 4) + 's';
-    effects.appendChild(p);
-  }
-})();
-</script>
 </body>
 </html>
