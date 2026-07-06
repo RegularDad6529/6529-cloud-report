@@ -61,7 +61,7 @@ jobs:
         run: |
           git config user.name "TheManager"
           git config user.email "noreply@6529.io"
-          git add cloud_report.png
+          git add cloud_report.png index.html
           git commit -m "Cloud Report update $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
           git push
 

@@ -800,7 +800,11 @@ def main():
     except Exception:
         font_b64 = ''
 
-    # === Build HTML — static PNG + weather-only animations ===
+    # === Build HTML — two versions ===
+    # 1. Standalone HTML (base64 embedded) for local use
+    # 2. GitHub Pages HTML (references cloud_report.png from repo) for index.html
+    
+    # We'll build the shared CSS/JS, then create two versions with different <img> srcs
     weather_lower = weather.lower().replace(' ', '_')
     is_positive = avg_sentiment > 0.2
     is_negative = avg_sentiment < -0.2
@@ -1033,13 +1037,39 @@ body {{
   </script>
 '''
 
-    html += '''</div>
+    html += f'''</div>
 </body>
 </html>'''
 
+    # Save standalone HTML (base64 embedded)
     with open(OUTPUT_HTML, 'w') as f:
         f.write(html)
     print(f'Saved HTML: {OUTPUT_HTML}')
+    
+    # Save GitHub Pages index.html (references cloud_report.png from repo)
+    # Replace base64 img src with relative path
+    pages_html = html.replace(
+        f'src="data:image/png;base64,{png_b64}"',
+        'src="cloud_report.png"'
+    )
+    # Also remove the embedded font to keep it small — use system fonts
+    if font_b64:
+        pages_html = pages_html.replace(
+            f"@font-face {{\n  font-family: 'DejaVuSansBold';\n  src: url(data:font/woff;base64,{font_b64}) format('woff');\n}}\n",
+            "/* Font: DejaVu Sans Bold (not embedded for Pages — words are in the PNG) */\n"
+        )
+        pages_html = pages_html.replace(
+            "font-family: 'DejaVuSansBold', sans-serif;",
+            "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"
+        )
+    
+    pages_path = os.path.join(os.path.dirname(OUTPUT_PATH) if OUTPUT_PATH else '/tmp', 'index.html')
+    # Use repo-relative path for index.html
+    repo_index = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+    with open(repo_index, 'w') as f:
+        f.write(pages_html)
+    print(f'Saved GitHub Pages index.html: {repo_index} ({len(pages_html)} bytes)')
+    
     print(f'\nWeather: {weather} | Sentiment: {avg_sentiment:+.3f} | Words: {len(word_freq)}')
     print(f'Cloud path: {len(cloud_path_str)} chars')
 
