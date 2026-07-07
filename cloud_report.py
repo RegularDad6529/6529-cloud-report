@@ -256,9 +256,31 @@ def fetch_and_process_daily():
             pass
         time.sleep(0.3)
 
-    wave_activity.sort(key=lambda x: x[1], reverse=True)
-    top_waves = [x[0] for x in wave_activity[:5]]  # top 5 busiest
-    print(f'\nTop 5 busiest waves today: {[w.get("name","?")[:20] for w in top_waves]}')
+    # Filter out waves where only 1 unique user is posting
+    # (low diversity — usually a solo thread, not representative of community)
+    wave_activity_filtered = []
+    for w, count in wave_activity:
+        wid = w['id']
+        wname = w.get('name', 'unknown')
+        try:
+            sample_drops = fetch_daily_drops(wid, cutoff_ts, max_fetch=30)
+            authors = set()
+            for d in sample_drops:
+                a = d.get('author', {})
+                h = a.get('handle', '') if isinstance(a, dict) else ''
+                if h and h.lower() not in IGNORE_USERS:
+                    authors.add(h.lower())
+            if len(authors) <= 1:
+                print(f'  {wname[:30]:30s} → {count} drops but only {len(authors)} unique author(s) — SKIPPED')
+                continue
+            wave_activity_filtered.append((w, count, len(authors)))
+        except:
+            wave_activity_filtered.append((w, count, 0))
+        time.sleep(0.3)
+
+    wave_activity_filtered.sort(key=lambda x: x[1], reverse=True)
+    top_waves = [x[0] for x in wave_activity_filtered[:7]]  # top 7 busiest
+    print(f'\nTop 7 busiest waves today: {[(w.get("name","?")[:20], c, a) for w, c, a in wave_activity_filtered[:7]]}')
 
     # Fetch all drops
     all_text = []
