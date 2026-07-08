@@ -618,31 +618,43 @@ def main():
     for word in word_freq.keys():
         word_sentiments[word] = vader.polarity_scores(word)['compound']
 
-    # Spring palette (positive) — deep, saturated colors that pop against gray cloud
-    SPRING_COLORS = [
+    # Green palette (positive) — green and green-adjacent on the color spectrum
+    # Greens → yellow-greens → blue-greens (teal/jade)
+    GREEN_COLORS = [
         (40, 160, 60),     # deep grass green
-        (100, 180, 50),    # forest lime
-        (220, 60, 140),    # hot pink
-        (240, 160, 30),    # golden yellow
-        (50, 130, 220),    # deep sky blue
-        (130, 80, 220),    # deep lavender
-        (30, 170, 130),    # deep teal
-        (230, 110, 50),    # coral
-        (180, 50, 100),    # magenta
-        (60, 140, 40),     # pine green
+        (60, 180, 80),     # fresh leaf green
+        (30, 140, 50),     # forest green
+        (80, 200, 100),    # bright spring green
+        (20, 120, 40),     # pine green
+        (50, 170, 70),     # meadow green
+        (100, 190, 60),    # lime green
+        (70, 160, 50),     # sage green
+        (35, 145, 90),     # green-teal
+        (55, 175, 110),    # jade green
+        (120, 200, 50),    # yellow-green (chartreuse)
+        (140, 210, 70),    # yellow-green bright
+        (40, 170, 140),    # teal-green
+        (30, 155, 120),    # sea green
+        (160, 190, 50),    # olive-yellow green
     ]
-    # Halloween palette (negative) — deep, rich darks with hue still visible
-    HALLOWEEN_COLORS = [
-        (200, 80, 10),     # deep pumpkin
-        (90, 30, 130),     # deep witch purple
-        (150, 25, 25),     # blood red
-        (60, 35, 20),      # dark earth
-        (70, 40, 110),     # midnight purple
-        (170, 70, 20),     # burnt orange
-        (40, 25, 50),      # near-black purple
-        (110, 50, 30),     # dark rust
-        (80, 60, 20),      # dark olive
-        (130, 40, 60),     # dark maroon
+    # Red palette (negative) — red and red-adjacent on the color spectrum
+    # Reds → orange-reds → red-purples (magenta/maroon)
+    RED_COLORS = [
+        (200, 50, 50),     # crimson
+        (180, 40, 40),     # deep red
+        (220, 70, 60),     # bright red
+        (160, 30, 30),     # dark blood red
+        (190, 60, 50),     # brick red
+        (170, 50, 40),     # maroon
+        (210, 80, 70),     # coral red
+        (150, 40, 35),     # wine red
+        (200, 55, 45),     # scarlet
+        (180, 45, 50),     # ruby red
+        (210, 90, 40),     # red-orange
+        (200, 70, 30),     # vermillion
+        (160, 50, 60),     # red-magenta
+        (140, 40, 55),     # dark rose
+        (180, 60, 70),     # red-pink
     ]
 
     # Overall sentiment drives intensity
@@ -651,9 +663,9 @@ def main():
     def color_func(word, font_size, position, orientation, **kwargs):
         s = word_sentiments.get(word, 0)
         if overall_t >= 0:
-            # SPRING — use the deep palette colors directly
-            base = random.choice(SPRING_COLORS)
-            # Per-word: positive words get a slight brightness lift, negative words stay deep
+            # POSITIVE — green palette
+            base = random.choice(GREEN_COLORS)
+            # Per-word: positive words get a slight brightness lift, neutral words stay deep
             if s > 0.3:
                 # Strong positive — brighten slightly toward full saturation
                 lift = 0.1 + 0.1 * overall_t
@@ -664,8 +676,8 @@ def main():
                 r, g, b = base
             return (r, g, b)
         else:
-            # HALLOWEEN — use the deep palette colors, darken slightly at extremes
-            base = random.choice(HALLOWEEN_COLORS)
+            # NEGATIVE — red palette
+            base = random.choice(RED_COLORS)
             if s < -0.3:
                 # Strong negative — darken further
                 factor = 0.7 + 0.2 * (1 + overall_t)  # 0.7 at -1, 0.9 at neutral-
