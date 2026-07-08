@@ -618,43 +618,36 @@ def main():
     for word in word_freq.keys():
         word_sentiments[word] = vader.polarity_scores(word)['compound']
 
-    # Green palette (positive) — green and green-adjacent on the color spectrum
-    # Greens → yellow-greens → blue-greens (teal/jade)
+    # Green pool (positive) — merged Coolors-style palettes, dark to mid range
+    # Stays readable against gray cloud fill — no palest shades
     GREEN_COLORS = [
-        (40, 160, 60),     # deep grass green
-        (60, 180, 80),     # fresh leaf green
-        (30, 140, 50),     # forest green
-        (80, 200, 100),    # bright spring green
-        (20, 120, 40),     # pine green
-        (50, 170, 70),     # meadow green
-        (100, 190, 60),    # lime green
-        (70, 160, 50),     # sage green
-        (35, 145, 90),     # green-teal
-        (55, 175, 110),    # jade green
-        (120, 200, 50),    # yellow-green (chartreuse)
-        (140, 210, 70),    # yellow-green bright
-        (40, 170, 140),    # teal-green
-        (30, 155, 120),    # sea green
-        (160, 190, 50),    # olive-yellow green
+        (28, 67, 38),     # forest dark
+        (34, 79, 42),     # pine
+        (15, 81, 73),     # dark teal-green
+        (52, 116, 64),    # moss
+        (67, 127, 75),    # grass
+        (43, 122, 95),    # jade
+        (94, 158, 82),    # leaf
+        (76, 168, 124),   # spring green
+        (119, 178, 85),   # bright green
+        (157, 196, 115),  # sage light
+        (130, 201, 163),  # mint
+        (175, 209, 112),  # chartreuse
     ]
-    # Red palette (negative) — red and red-adjacent on the color spectrum
-    # Reds → orange-reds → red-purples (magenta/maroon)
+    # Red pool (negative) — merged Coolors-style palettes, dark to mid range
     RED_COLORS = [
-        (200, 50, 50),     # crimson
-        (180, 40, 40),     # deep red
-        (220, 70, 60),     # bright red
-        (160, 30, 30),     # dark blood red
-        (190, 60, 50),     # brick red
-        (170, 50, 40),     # maroon
-        (210, 80, 70),     # coral red
-        (150, 40, 35),     # wine red
-        (200, 55, 45),     # scarlet
-        (180, 45, 50),     # ruby red
-        (210, 90, 40),     # red-orange
-        (200, 70, 30),     # vermillion
-        (160, 50, 60),     # red-magenta
-        (140, 40, 55),     # dark rose
-        (180, 60, 70),     # red-pink
+        (60, 12, 16),     # near-black red
+        (48, 16, 20),     # dark maroon
+        (74, 21, 26),     # dark wine
+        (115, 28, 32),    # blood
+        (105, 30, 36),    # wine
+        (124, 39, 35),    # deep red
+        (170, 45, 45),    # crimson
+        (160, 48, 48),    # brick
+        (177, 62, 49),    # rust red
+        (205, 75, 60),    # vermillion
+        (210, 80, 70),    # bright red
+        (220, 95, 66),    # burnt orange-red
     ]
 
     # Overall sentiment drives intensity
@@ -663,30 +656,34 @@ def main():
     def color_func(word, font_size, position, orientation, **kwargs):
         s = word_sentiments.get(word, 0)
         if overall_t >= 0:
-            # POSITIVE — green palette
-            base = random.choice(GREEN_COLORS)
-            # Per-word: positive words get a slight brightness lift, neutral words stay deep
-            if s > 0.3:
-                # Strong positive — brighten slightly toward full saturation
-                lift = 0.1 + 0.1 * overall_t
-                r = min(255, int(base[0] + (255 - base[0]) * lift))
-                g = min(255, int(base[1] + (255 - base[1]) * lift))
-                b = min(255, int(base[2] + (255 - base[2]) * lift))
-            else:
-                r, g, b = base
-            return (r, g, b)
+            # POSITIVE — green pool, sentiment-mapped with jitter
+            pool = GREEN_COLORS
+            base_t = 0.1 + 0.6 * (s + 1) / 2  # 0.1..0.7
         else:
-            # NEGATIVE — red palette
-            base = random.choice(RED_COLORS)
-            if s < -0.3:
-                # Strong negative — darken further
-                factor = 0.7 + 0.2 * (1 + overall_t)  # 0.7 at -1, 0.9 at neutral-
-                r = int(base[0] * factor)
-                g = int(base[1] * factor)
-                b = int(base[2] * factor)
-            else:
-                r, g, b = base
-            return (r, g, b)
+            # NEGATIVE — red pool, sentiment-mapped with jitter
+            pool = RED_COLORS
+            base_t = 0.05 + 0.5 * (s + 1) / 2  # 0.05..0.55
+
+        # Random jitter for variety between neighboring words
+        jitter = random.uniform(-0.15, 0.15)
+        t = max(0, min(0.85, base_t + jitter))
+
+        # 30% chance: snap to a nearby discrete shade for visual variety
+        # 70% chance: smooth interpolation between adjacent pool colors
+        idx = t * (len(pool) - 1)
+        i0 = int(idx)
+        i1 = min(i0 + 1, len(pool) - 1)
+        frac = idx - i0
+        if random.random() < 0.3:
+            offset = random.randint(-2, 2)
+            pick = max(0, min(len(pool) - 1, i0 + offset))
+            return pool[pick]
+        else:
+            c0 = pool[i0]
+            c1 = pool[i1]
+            return (int(c0[0] + (c1[0] - c0[0]) * frac),
+                    int(c0[1] + (c1[1] - c0[1]) * frac),
+                    int(c0[2] + (c1[2] - c0[2]) * frac))
 
     wc = WordCloud(
         width=MASK_W, height=MASK_H,
