@@ -618,51 +618,67 @@ def main():
     for word in word_freq.keys():
         word_sentiments[word] = vader.polarity_scores(word)['compound']
 
-    # Green pool (positive) — merged Coolors-style palettes, dark to mid range
-    # Stays readable against gray cloud fill — no palest shades
-    GREEN_COLORS = [
-        (28, 67, 38),     # forest dark
-        (34, 79, 42),     # pine
-        (15, 81, 73),     # dark teal-green
-        (52, 116, 64),    # moss
-        (67, 127, 75),    # grass
-        (43, 122, 95),    # jade
-        (94, 158, 82),    # leaf
-        (76, 168, 124),   # spring green
-        (119, 178, 85),   # bright green
-        (157, 196, 115),  # sage light
-        (130, 201, 163),  # mint
-        (175, 209, 112),  # chartreuse
+    # Bright palette (positive) — Coolors-style vibrant, saturated, light
+    # Pops against gray cloud fill
+    BRIGHT_COLORS = [
+        (255, 209, 102),  # golden yellow
+        (255, 179, 71),   # orange
+        (255, 154, 162),  # salmon pink
+        (255, 107, 107),  # coral red
+        (255, 159, 28),   # tangerine
+        (239, 218, 123),  # pastel yellow
+        (168, 218, 220),  # light cyan
+        (255, 183, 107),  # peach
+        (255, 140, 105),  # warm coral
+        (255, 224, 102),  # bright yellow
+        (130, 200, 255),  # sky blue
+        (165, 241, 163),  # mint green
+        (255, 190, 168),  # peach pink
+        (245, 160, 200),  # bright pink
+        (180, 230, 160),  # spring green
     ]
-    # Red pool (negative) — merged Coolors-style palettes, dark to mid range
-    RED_COLORS = [
-        (60, 12, 16),     # near-black red
-        (48, 16, 20),     # dark maroon
-        (74, 21, 26),     # dark wine
-        (115, 28, 32),    # blood
-        (105, 30, 36),    # wine
-        (124, 39, 35),    # deep red
-        (170, 45, 45),    # crimson
-        (160, 48, 48),    # brick
-        (177, 62, 49),    # rust red
-        (205, 75, 60),    # vermillion
-        (210, 80, 70),    # bright red
-        (220, 95, 66),    # burnt orange-red
+    # Dark palette (negative) — Coolors-style muted jewel tones
+    # Darker than positive but still readable against gray cloud fill
+    DARK_COLORS = [
+        (100, 85, 120),   # muted purple
+        (80, 100, 130),   # steel blue
+        (110, 80, 105),   # mauve
+        (85, 115, 110),   # dark teal
+        (115, 80, 85),    # muted maroon
+        (70, 95, 115),    # slate blue
+        (105, 90, 130),   # indigo
+        (120, 75, 100),   # dark berry
+        (80, 110, 100),   # dark sage
+        (110, 95, 80),    # bronze
+        (75, 120, 120),   # dark cyan
+        (125, 85, 115),   # dark rose
+        (65, 85, 110),    # dark navy
+        (95, 80, 115),    # plum
+        (115, 100, 130),  # muted violet
     ]
 
-    # Overall sentiment drives intensity
-    overall_t = max(-1, min(1, avg_sentiment))  # -1 to +1
+    # Overall sentiment drives palette choice — narrowed scale (±0.5 cap)
+    # Small sentiment differences produce bigger color changes
+    overall_t = max(-0.5, min(0.5, avg_sentiment))
 
     def color_func(word, font_size, position, orientation, **kwargs):
         s = word_sentiments.get(word, 0)
+        s_capped = max(-0.5, min(0.5, s))
+
         if overall_t >= 0:
-            # POSITIVE — green pool, sentiment-mapped with jitter
-            pool = GREEN_COLORS
-            base_t = 0.1 + 0.6 * (s + 1) / 2  # 0.1..0.7
+            # POSITIVE — bright pool, sentiment-mapped with jitter
+            pool = BRIGHT_COLORS
+            if s_capped > 0:
+                base_t = 0.2 + 0.8 * (s_capped / 0.5)  # 0.2..1.0
+            else:
+                base_t = 0.2 + 0.4 * (s_capped + 0.5) / 0.5  # 0.2..0.6
         else:
-            # NEGATIVE — red pool, sentiment-mapped with jitter
-            pool = RED_COLORS
-            base_t = 0.05 + 0.5 * (s + 1) / 2  # 0.05..0.55
+            # NEGATIVE — dark pool, sentiment-mapped with jitter
+            pool = DARK_COLORS
+            if s_capped < 0:
+                base_t = 0.8 * (s_capped + 0.5) / 0.5  # 0.0..0.8
+            else:
+                base_t = 0.5 + 0.3 * s_capped / 0.5  # 0.5..0.8
 
         # Random jitter for variety between neighboring words
         jitter = random.uniform(-0.15, 0.15)
