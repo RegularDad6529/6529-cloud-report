@@ -183,6 +183,66 @@ for i, arg in enumerate(sys.argv):
     if arg == '--output' and i + 1 < len(sys.argv):
         OUTPUT_PATH = sys.argv[i + 1]
 
+def normalize_text(text):
+    """Normalize text for deduplication: lowercase, strip URLs, collapse whitespace."""
+    t = re.sub(r'https?://\S+', '', text.lower())
+    t = re.sub(r'[^a-z0-9 ]', '', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+def dedupe_text_samples(all_text, verbose=True):
+    """Deduplicate near-identical text samples to prevent copypasta spam.
+
+    When users copy-paste the same greeting (e.g. "happy birthday kristopher" x50),
+    each instance inflates word/bigram counts. We keep at most 3 copies of any
+    normalized text so genuine repetition (a few people saying the same thing)
+    still counts, but mass copypasta doesn't dominate the cloud.
+    """
+    MAX_DUPES = 3
+    seen = Counter()
+    deduped = []
+    for text in all_text:
+        norm = normalize_text(text)
+        if not norm or len(norm) < 4:
+            continue
+        if seen[norm] < MAX_DUPES:
+            deduped.append(text)
+            seen[norm] += 1
+    if verbose:
+        removed = len(all_text) - len(deduped)
+        if removed > 0:
+            top_copypasta = seen.most_common(5)
+            print(f'  Dedup: removed {removed} duplicate samples (kept max {MAX_DUPES} each)')
+            for norm, count in top_copypasta:
+                if count > MAX_DUPES:
+                    preview = norm[:60] + ('...' if len(norm) > 60 else '')
+                    print(f'    [{count}x] {preview}')
+    return deduped
+
+def cap_word_frequencies(word_freq, max_ratio=8):
+    """Cap any word's frequency to max_ratio× the median frequency.
+
+    Without this, a copypasta phrase at 500x makes the wordcloud library
+    render only 12-20 words instead of 30+. The giant word crowds out
+    everything else.
+    """
+    if not word_freq:
+        return word_freq
+    freqs = sorted(word_freq.values())
+    median = freqs[len(freqs) // 2] if freqs else 1
+    cap = max(median * max_ratio, 10)  # at least 10 so small clouds aren't flat
+    capped = Counter()
+    capped_count = 0
+    for word, count in word_freq.items():
+        if count > cap:
+            capped[word] = cap
+            capped_count += 1
+        else:
+            capped[word] = count
+    if capped_count > 0:
+        print(f'  Freq cap: {capped_count} words capped at {cap}x (median was {median}x)')
+    return capped
+
 def is_within_24h(drop, cutoff_ts):
     """Check if a drop was created within the last 24 hours.
     created_at is a Unix timestamp in milliseconds."""
@@ -316,7 +376,10 @@ def fetch_and_process_daily():
             if text and len(text) > 3:
                 all_text.append(text)
 
-    print(f'\nTotal text samples: {len(all_text)}')
+    # Deduplicate copypasta before processing
+    all_text = dedupe_text_samples(all_text)
+    print(f'After dedup: {len(all_text)} text samples')
+
     if len(all_text) < 10:
         print('WARNING: Very few drops in the last 24h — cloud will be sparse')
 
@@ -352,6 +415,9 @@ def fetch_and_process_daily():
                 bigram_component_words.add(w)
     for w in bigram_component_words:
         word_freq.pop(w, None)
+
+    # Cap frequencies to prevent any single word/bigram from dominating
+    word_freq = cap_word_frequencies(word_freq)
 
     # Sentiment
     analyzer = SentimentIntensityAnalyzer()
@@ -436,7 +502,9 @@ def fetch_and_process():
             if text and len(text) > 3:
                 all_text.append(text)
 
-    print(f'\nTotal text samples: {len(all_text)}')
+    # Deduplicate copypasta before processing
+    all_text = dedupe_text_samples(all_text)
+    print(f'\nAfter dedup: {len(all_text)} text samples')
 
     # Process text
     combined = ' '.join(all_text)
@@ -470,6 +538,9 @@ def fetch_and_process():
                 bigram_component_words.add(w)
     for w in bigram_component_words:
         word_freq.pop(w, None)
+
+    # Cap frequencies to prevent any single word/bigram from dominating
+    word_freq = cap_word_frequencies(word_freq)
 
     # Sentiment
     analyzer = SentimentIntensityAnalyzer()
